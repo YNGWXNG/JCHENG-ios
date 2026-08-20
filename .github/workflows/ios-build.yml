@@ -29,7 +29,7 @@ jobs:
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           flutter doctor -v
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flet mysql-connector-python pillow requests pyzbar numpy
@@ -37,13 +37,12 @@ jobs:
       - name: Install CocoaPods
         run: sudo gem install cocoapods
 
-      # ---------- 使用 flet 生成 iOS 项目（忽略签名失败） ----------
+      # ---------- 生成 iOS 项目（忽略签名失败） ----------
       - name: Generate iOS project with flet
         run: |
           yes | flet build ipa --verbose || true
-        # 即使 flet 构建失败，项目文件仍保存在 build/flutter/ios/ 中
 
-      # ---------- 使用 xcodebuild 进行 Archive（自动签名） ----------
+      # ---------- 使用 xcodebuild 进行 Archive（强制自动签名，清除手动描述文件） ----------
       - name: Archive with xcodebuild
         working-directory: build/flutter/ios
         env:
@@ -56,7 +55,9 @@ jobs:
             archive \
             -allowProvisioningUpdates \
             DEVELOPMENT_TEAM="$TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic
+            CODE_SIGN_STYLE=Automatic \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            PROVISIONING_PROFILE=""
 
       # ---------- 导出 IPA ----------
       - name: Export IPA
