@@ -42,18 +42,34 @@ jobs:
         run: |
           yes | flet build ipa --verbose || true
 
+      # ---------- 将 Apple ID 凭据添加到钥匙串 ----------
+      - name: Add Apple ID to keychain
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          # 解锁钥匙串（确保可写）
+          security unlock-keychain -p runner ~/Library/Keychains/login.keychain-db || true
+          # 添加 Apple ID 凭据（服务名称是固定的）
+          security add-generic-password -a "$APPLE_ID" -s "com.apple.idms.appleid.prd" -w "$APPLE_APP_SPECIFIC_PASSWORD" -U
+          # 重新锁定钥匙串（可选）
+          # security lock-keychain ~/Library/Keychains/login.keychain-db
+
       # ---------- 使用 xcodebuild 进行 Archive（强制自动签名，覆盖冲突项） ----------
       - name: Archive with xcodebuild
         working-directory: build/flutter/ios
         env:
           TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
+          # 再次解锁，确保后续命令可访问
+          security unlock-keychain -p runner ~/Library/Keychains/login.keychain-db || true
           xcodebuild -workspace Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/Runner.xcarchive \
             archive \
             -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
             DEVELOPMENT_TEAM="$TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
             CODE_SIGN_IDENTITY="Apple Development" \
