@@ -1,0 +1,72 @@
+[project]
+name = "JCheng erp"
+version = "1.0.0"
+description = "玖诚电器ERP系统"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "JCHENG", email = "ywxing79523@163.com" }
+]
+dependencies = [
+    "flet>=0.86.0",
+    "mysql-connector-python",
+    "pillow",
+    "requests",
+    "pyzbar",
+    "numpy",
+    # ... 其他依赖
+]
+
+[tool.flet]
+# 组织标识（反向域名，必须与 Apple 注册的 Bundle ID 匹配）[reference:9]
+org = "com.jiucheng"
+# 产品名称
+product = "玖诚电器ERP"
+# 公司名称
+company = "JCHENG"
+# 版权信息
+copyright = "Copyright (C) 2026 by JCHENG"
+
+[tool.flet.app]
+# 应用入口目录
+path = "src"
+
+# ========== iOS 专属配置 ==========
+[tool.flet.ios]
+# Bundle ID = org + product，即 com.yourcompany.jiuchengerp
+# 团队 ID（从 Apple Developer 获取）[reference:10]
+team_id = "HKBW9K3QXG"
+
+# 签名证书[reference:11]
+signing_certificate = "Apple Distribution"
+
+# 描述文件[reference:12]
+provisioning_profile = "JCHENG AppStore"
+
+# 导出方式[reference:13]
+# debugging / release-testing / app-store-connect / enterprise
+export_method = "app-store-connect"
+
+# ========== iOS 权限配置（Info.plist）==========
+# 以下为应用需要的权限描述[reference:14][reference:15]
+[tool.flet.ios.info]
+# 相机权限（你的代码中使用了相机）
+NSCameraUsageDescription = "玖诚电器ERP需要访问相机，用于扫描条码和拍照上传"
+
+# 相册权限（你的代码中使用了相册）
+NSPhotoLibraryUsageDescription = "玖诚电器ERP需要访问相册，用于选择图片上传"
+
+# 定位权限（你的代码中使用了定位）
+NSLocationWhenInUseUsageDescription = "玖诚电器ERP需要获取位置信息，用于添加照片水印"
+
+# 麦克风权限（相机可能附带，可选）
+NSMicrophoneUsageDescription = "玖诚电器ERP需要访问麦克风，用于视频录制"
+
+# 允许 HTTP 请求（如果你的服务器没有 HTTPS）
+NSAppTransportSecurity = { NSAllowsArbitraryLoads = true }
+
+# ========== 导出选项（可选）==========
+[tool.flet.ios.export_options]
+uploadSymbols = true
+compileBitcode = false
+thinning = "<none>"
