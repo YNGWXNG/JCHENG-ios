@@ -42,7 +42,7 @@ jobs:
         run: |
           yes | flet build ipa --verbose || true
 
-      # ---------- 使用 xcodebuild 进行 Archive（强制自动签名，清除手动描述文件） ----------
+      # ---------- 使用 xcodebuild 进行 Archive（强制自动签名，覆盖冲突项） ----------
       - name: Archive with xcodebuild
         working-directory: build/flutter/ios
         env:
@@ -56,6 +56,7 @@ jobs:
             -allowProvisioningUpdates \
             DEVELOPMENT_TEAM="$TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_IDENTITY="Apple Development" \
             PROVISIONING_PROFILE_SPECIFIER="" \
             PROVISIONING_PROFILE=""
 
