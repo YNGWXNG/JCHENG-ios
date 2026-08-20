@@ -3,13 +3,10 @@ name: iOS Build (IPA)
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build-ios:
-    # iOS 构建必须在 macOS 上运行[reference:23]
     runs-on: macos-latest
     
     steps:
@@ -21,25 +18,37 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      # ========== 关键：安装 Flutter SDK（避免交互提示） ==========
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'   # 或 'stable'，但 Flet 内部会自己升级
+          channel: 'stable'
+          cache: true
+
+      # 显式设置 FLUTTER_ROOT 环境变量（可选）
+      - name: Set Flutter environment
+        run: |
+          echo "FLUTTER_ROOT=$HOME/flutter" >> $GITHUB_ENV
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+          flutter doctor -v
+
+      # ========== 安装项目依赖 ==========
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flet
+          pip install flet mysql-connector-python pillow requests pyzbar numpy
 
-      - name: Install Rosetta 2 (for Apple Silicon)
-        run: |
-          sudo softwareupdate --install-rosetta --agree-to-license || true
-
+      # ========== 安装 CocoaPods（iOS 必须） ==========
       - name: Install CocoaPods
         run: |
           sudo gem install cocoapods
 
+      # ========== 构建 IPA（自动确认所有提示） ==========
       - name: Build iOS IPA
-        env:
-          # 从 GitHub Secrets 读取敏感信息
-          FLET_BUILD_IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
-          flet build ipa --verbose
+          # yes 命令自动输入 'y'，解决安装 Flutter 的交互式提示
+          yes | flet build ipa --verbose
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
