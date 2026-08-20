@@ -29,7 +29,7 @@ jobs:
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           flutter doctor -v
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flet mysql-connector-python pillow requests pyzbar numpy
@@ -37,35 +37,33 @@ jobs:
       - name: Install CocoaPods
         run: sudo gem install cocoapods
 
-      # ========== 关键：执行 flet build，允许签名失败 ==========
-      - name: Build Flet iOS app (generate project & archive)
+      # ---------- 使用 flet 生成 iOS 项目（忽略签名失败） ----------
+      - name: Generate iOS project with flet
         run: |
-          yes | flet build ipa --verbose || echo "flet build failed but we will continue"
-        # 尽管命令可能失败，但 .xcarchive 已经生成
+          yes | flet build ipa --verbose || true
+        # 即使 flet 构建失败，项目文件仍保存在 build/flutter/ios/ 中
 
-      # ========== 查找已生成的 .xcarchive ==========
-      - name: Locate .xcarchive
-        id: find_archive
-        run: |
-          ARCHIVE_PATH=$(find . -name "*.xcarchive" -type d | head -n 1)
-          if [ -z "$ARCHIVE_PATH" ]; then
-            echo "No .xcarchive found, exit with error"
-            exit 1
-          fi
-          echo "ARCHIVE_PATH=$ARCHIVE_PATH" >> $GITHUB_ENV
-          echo "Found archive at $ARCHIVE_PATH"
-
-      # ========== 使用 xcodebuild 导出 IPA（自动签名） ==========
-      - name: Export IPA with automatic signing
+      # ---------- 使用 xcodebuild 进行 Archive（自动签名） ----------
+      - name: Archive with xcodebuild
+        working-directory: build/flutter/ios
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
-          # 解锁钥匙串（避免弹出密码框）
-          security unlock-keychain -p runner ~/Library/Keychains/login.keychain-db || true
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/Runner.xcarchive \
+            archive \
+            -allowProvisioningUpdates \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic
 
-          # 导出 exportOptions.plist
+      # ---------- 导出 IPA ----------
+      - name: Export IPA
+        working-directory: build/flutter/ios
+        env:
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
           cat > exportOptions.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -83,16 +81,16 @@ jobs:
           </plist>
           EOF
 
-          # 使用 xcodebuild 导出 IPA
           xcodebuild -exportArchive \
-            -archivePath "$ARCHIVE_PATH" \
-            -exportPath ./build/ipa \
+            -archivePath build/Runner.xcarchive \
+            -exportPath build/ipa \
             -exportOptionsPlist exportOptions.plist \
             -allowProvisioningUpdates
 
+      # ---------- 上传 IPA ----------
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa-development
-          path: build/ipa/*.ipa
+          path: build/flutter/ios/build/ipa/*.ipa
           retention-days: 30
