@@ -1,14 +1,12 @@
-name: iOS Build (IPA)
+name: iOS Build (Self-Test)
 
 on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
+  workflow_dispatch:  # 手动触发，方便测试
 
 jobs:
   build-ios:
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,41 +16,82 @@ jobs:
         with:
           python-version: '3.11'
 
-      # ========== 关键：安装 Flutter SDK（避免交互提示） ==========
+      # ---------- 安装 Flutter（Flet 所需） ----------
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'   # 或 'stable'，但 Flet 内部会自己升级
+          flutter-version: '3.22.0'
           channel: 'stable'
           cache: true
 
-      # 显式设置 FLUTTER_ROOT 环境变量（可选）
       - name: Set Flutter environment
         run: |
           echo "FLUTTER_ROOT=$HOME/flutter" >> $GITHUB_ENV
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
-          flutter doctor -v
 
-      # ========== 安装项目依赖 ==========
-      - name: Install Python dependencies
+      # ---------- 安装 Python 依赖 ----------
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flet mysql-connector-python pillow requests pyzbar numpy
 
-      # ========== 安装 CocoaPods（iOS 必须） ==========
+      # ---------- 安装 CocoaPods（必须） ----------
       - name: Install CocoaPods
-        run: |
-          sudo gem install cocoapods
+        run: sudo gem install cocoapods
 
-      # ========== 构建 IPA（自动确认所有提示） ==========
-      - name: Build iOS IPA
+      # ---------- 生成 Flutter iOS 项目（不签名） ----------
+      - name: Build Flet iOS app (no code signing)
+        run: yes | flet build ipa --no-codesign --verbose
+        # 注意：--no-codesign 在 flet 0.86.5 中可能不支持，若报错则移除该参数
+        # 如果 flet 不支持 --no-codesign，则先构建项目，稍后用 xcodebuild 签名
+
+      # ---------- 如果 flet build ipa 没有生成 .ipa，但已生成 xcworkspace，则手动签名 ----------
+      - name: Sign and Export IPA using xcodebuild
+        working-directory: build/flutter/ios
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}  # 可以从 apple developer 获取，或从 xcodebuild 中自动检测
         run: |
-          # yes 命令自动输入 'y'，解决安装 Flutter 的交互式提示
-          yes | flet build ipa --verbose
+          # 解锁钥匙串（避免弹出密码框）
+          security unlock-keychain -p runner ~/Library/Keychains/login.keychain-db || true
+
+          # 构建 Archive
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/Runner.xcarchive \
+            archive \
+            -allowProvisioningUpdates \
+            DEVELOPMENT_TEAM=$TEAM_ID \
+            CODE_SIGN_STYLE=Automatic
+
+          # 导出 IPA（Development 类型）
+          xcodebuild -exportArchive \
+            -archivePath build/Runner.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist <(cat <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>development</string>
+            <key>teamID</key>
+            <string>$TEAM_ID</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          ) \
+            -allowProvisioningUpdates
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa
-          path: build/ipa/*.ipa
+          name: ios-ipa-development
+          path: build/flutter/ios/build/ipa/*.ipa
           retention-days: 30
