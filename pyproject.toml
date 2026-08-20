@@ -8,13 +8,17 @@ authors = [
     { name = "JCHENG", email = "ywxing79523@163.com" }
 ]
 dependencies = [
-    "flet>=0.86.0",
-    "mysql-connector-python",
-    "pillow",
-    "requests",
-    "pyzbar",
-    "numpy",
-    # ... 其他依赖
+    "flet==0.86.2",
+    "flet-camera==0.86.2",
+    "flet-flashlight==0.86.2",
+    "flet-geolocator==0.86.2",
+    "mysql-connector-python==8.3.0",
+    "Pillow==12.2.0",
+    "requests==2.32.3",
+    "reportlab==4.2.2",
+    "numpy==2.4.6",
+    "flet-permission-handler==0.86.2",
+    "pyzbar==0.1.9"
 ]
 
 [tool.flet]
