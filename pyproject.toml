@@ -1,7 +1,7 @@
 [project]
 name = "JCheng erp"
 version = "1.0.0"
-description = "玖诚电器ERP系统"
+description = "jiucheng"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
@@ -27,7 +27,7 @@ dependencies = [
 # 组织标识（反向域名，必须与 Apple 注册的 Bundle ID 匹配）[reference:9]
 org = "com.jiucheng"
 # 产品名称
-product = "玖诚电器ERP"
+product = "JCHENG_ERP"
 # 公司名称
 company = "JCHENG"
 # 版权信息
@@ -41,7 +41,7 @@ path = "src"
 [tool.flet.ios]
 # Bundle ID = org + product，即 com.yourcompany.jiuchengerp
 # 团队 ID（从 Apple Developer 获取）[reference:10]
-team_id = "HKBW9K3QXG"
+team_id = "8QS2945957"
 
 # 签名证书[reference:11]
 signing_certificate = "Apple Distribution"
